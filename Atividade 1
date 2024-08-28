@@ -1,0 +1,3 @@
+LOAD DATA INFILE 'C:/Users/Nataie/Downloads/Produtos.csv' INTO TABLE lojao
+FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n'
+(id, codigo, nome, preco, quantidade);
