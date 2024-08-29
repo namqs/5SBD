@@ -1,22 +1,22 @@
 -- Separar em tabelas as colunas que fazem relação com cada uma
 
---1° Parte: Criar TEMPDATA e fazer upload doos dados
+-- 1° Parte: Criar TEMPDATA e fazer upload doos dados
 CREATE TABLE TEMPDATA (
-    codigoPedido VARCHAR(100),
+    codigoPedido VARCHAR(6),
     dataPedido DATE,
-    SKU VARCHAR(100),
-    UPC VARCHAR(100),
-    nomeProduto VARCHAR(255),
+    SKU VARCHAR(15),
+    UPC VARCHAR(3),
+    nomeProduto VARCHAR(50),
     qtd INT,
     valor DECIMAL(10, 2),
     frete DECIMAL(10, 2),
-    email VARCHAR(255),
-    codigoComprador VARCHAR(100),
-    nomeComprador VARCHAR(255),
-    endereco VARCHAR(255),
-    CEP VARCHAR(20),
-    UF VARCHAR(5),
-    pais VARCHAR(50)
+    email VARCHAR(50),
+    codigoComprador VARCHAR(3),
+    nomeComprador VARCHAR(50),
+    endereco VARCHAR(100),
+    CEP VARCHAR(8),
+    UF VARCHAR(2),
+    pais VARCHAR(30)
 );
 
 LOAD DATA INFILE 'C:/Users/natal/Downloads/pedidos.txt'
@@ -25,4 +25,25 @@ FIELDS TERMINATED BY ';' ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 LINES
 (codigoPedido, dataPedido, SKU, UPC, nomeProduto, qtd, valor, frete, email, codigoComprador, nomeComprador, endereco, CEP, UF, pais);
+
+-- 2° Parte: Criar tabelas cliente, produtos, estoque, pedido, itempedido
+CREATE TABLE cliente (
+    idCliente INT AUTO_INCREMENT PRIMARY KEY,
+    codigoComprador VARCHAR(3) UNIQUE,
+    nomeComprador VARCHAR(50),
+    email VARCHAR(50),
+    endereco VARCHAR(100),
+    CEP VARCHAR(8),
+    UF VARCHAR(2),
+    pais VARCHAR(30)
+);
+
+CREATE TABLE produtos (
+    idProduto INT AUTO_INCREMENT PRIMARY KEY,
+    SKU VARCHAR(15) UNIQUE,
+    UPC VARCHAR(3),
+    nomeProduto VARCHAR(50),
+    valor DECIMAL(10, 2)
+);
+
 
