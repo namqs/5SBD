@@ -1,1 +1,28 @@
--- Se
+-- Separar em tabelas as colunas que fazem relação com cada uma
+
+--1° Parte: Criar TEMPDATA e fazer upload doos dados
+CREATE TABLE TEMPDATA (
+    codigoPedido VARCHAR(100),
+    dataPedido DATE,
+    SKU VARCHAR(100),
+    UPC VARCHAR(100),
+    nomeProduto VARCHAR(255),
+    qtd INT,
+    valor DECIMAL(10, 2),
+    frete DECIMAL(10, 2),
+    email VARCHAR(255),
+    codigoComprador VARCHAR(100),
+    nomeComprador VARCHAR(255),
+    endereco VARCHAR(255),
+    CEP VARCHAR(20),
+    UF VARCHAR(5),
+    pais VARCHAR(50)
+);
+
+LOAD DATA INFILE 'C:/Users/natal/Downloads/pedidos.txt'
+INTO TABLE TEMPDATA
+FIELDS TERMINATED BY ';' ENCLOSED BY '"' 
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(codigoPedido, dataPedido, SKU, UPC, nomeProduto, qtd, valor, frete, email, codigoComprador, nomeComprador, endereco, CEP, UF, pais);
+
