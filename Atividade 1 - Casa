@@ -46,4 +46,56 @@ CREATE TABLE produtos (
     valor DECIMAL(10, 2)
 );
 
+CREATE TABLE estoque (
+    idEstoque INT AUTO_INCREMENT PRIMARY KEY,
+    SKU VARCHAR(15) UNIQUE,
+    quantidade INT
+);
+
+CREATE TABLE pedido (
+    idPedido INT AUTO_INCREMENT PRIMARY KEY,
+    codigoPedido VARCHAR(6) UNIQUE,
+    dataPedido DATE,
+    idCliente INT,
+    frete DECIMAL(10, 2),
+    FOREIGN KEY (idCliente) REFERENCES cliente(idCliente)
+);
+
+CREATE TABLE itempedido (
+    idItemPedido INT AUTO_INCREMENT PRIMARY KEY,
+    idPedido INT,
+    idProduto INT,
+    quantidade INT,
+    valor DECIMAL(10, 2),
+    FOREIGN KEY (idPedido) REFERENCES pedido(idPedido),
+    FOREIGN KEY (idProduto) REFERENCES produtos(idProduto)
+);
+
+-- 3° Parte: Inserir dados nas tabelas a partir da tabela temporária TEMPDATA
+
+INSERT INTO cliente (codigoComprador, nomeComprador, email, endereco, CEP, UF, pais)
+SELECT DISTINCT codigoComprador, nomeComprador, email, endereco, CEP, UF, pais
+FROM TEMPDATA;
+
+INSERT INTO produtos (SKU, UPC, nomeProduto, valor)
+SELECT DISTINCT SKU, UPC, nomeProduto, valor
+FROM TEMPDATA;
+
+INSERT INTO estoque (SKU, quantidade)
+SELECT SKU, SUM(qtd) AS quantidade
+FROM TEMPDATA
+GROUP BY SKU;
+
+INSERT INTO pedido (codigoPedido, dataPedido, idCliente, frete)
+SELECT DISTINCT codigoPedido, dataPedido, c.idCliente, frete
+FROM TEMPDATA t
+JOIN cliente c ON t.codigoComprador = c.codigoComprador;
+
+INSERT INTO itempedido (idPedido, idProduto, quantidade, valor)
+SELECT p.idPedido, pr.idProduto, t.qtd, t.valor
+FROM TEMPDATA t
+JOIN pedido p ON t.codigoPedido = p.codigoPedido
+JOIN produtos pr ON t.SKU = pr.SKU;
+
+DROP TABLE TEMPDATA;
 
