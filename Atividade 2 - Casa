@@ -1,1 +1,89 @@
+DECLARE @idPedido int,
+        @qtd int, 
+        @sku varchar(50), 
+        @upc varchar(50), 
+        @nomeProduto varchar(50), 
+        @valor decimal(9,2), 
+        @frete decimal(9,2), 
+        @email varchar(100), 
+        @codigoComprador int, 
+        @nomeComprador varchar(100), 
+        @endereco varchar(200), 
+        @cep varchar(20), 
+        @uf varchar(2), 
+        @pais varchar(50),
+        @totalPedido decimal(9,2),
+        @estoqueAtual int,
+        @totalEntrega decimal(9,2);
+
+-- Cursor para selecionar os pedidos pendentes
+DECLARE pedidoCursor CURSOR FOR 
+    SELECT p.idPedido, pi.sku, pi.upc, pi.nomeProduto, pi.qtd, pi.valor, p.frete, p.email, p.codigoComprador, 
+           p.nomeComprador, p.endereco, p.cep, p.uf, p.pais
+    FROM Pedidos p
+    INNER JOIN PedidosItens pi ON pi.idPedido = p.idPedido
+    WHERE p.status = 'pendente'
+    ORDER BY pi.valor * pi.qtd DESC;  -- Ordena pelo valor total do pedido
+
+OPEN pedidoCursor;
+
+FETCH NEXT FROM pedidoCursor INTO @idPedido, @sku, @upc, @nomeProduto, @qtd, @valor, @frete, 
+                                @email, @codigoComprador, @nomeComprador, @endereco, @cep, @uf, @pais;
+
+-- Inicia o processamento dos pedidos
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    -- Calcula o valor total do pedido (quantidade * valor)
+    SET @totalPedido = @qtd * @valor + @frete;
+    
+    -- Atualiza a tabela ENTREGA
+    INSERT INTO ENTREGA (idPedido, totalPedido, email, codigoComprador, nomeComprador, endereco, cep, uf, pais)
+    VALUES (@idPedido, @totalPedido, @email, @codigoComprador, @nomeComprador, @endereco, @cep, @uf, @pais);
+
+    -- Verifica o estoque atual do produto
+    SELECT @estoqueAtual = quantidade FROM Estoque WHERE sku = @sku;
+    
+    -- Se houver estoque suficiente, debita o produto
+    IF @estoqueAtual >= @qtd
+    BEGIN
+        UPDATE Estoque
+        SET quantidade = quantidade - @qtd
+        WHERE sku = @sku;
+        
+        -- Calcula o valor da entrega
+        SET @totalEntrega = @qtd * @valor;
+        
+        -- Registra a entrega
+        PRINT('Pedido entregue: ' + CAST(@idPedido AS varchar) + ', Produto: ' + @nomeProduto + ', Quantidade: ' + CAST(@qtd AS varchar));
+    END
+    ELSE
+    BEGIN
+        -- Se não houver estoque suficiente, insere o produto na tabela COMPRA
+        INSERT INTO COMPRA (sku, nomeProduto, quantidadeNecessaria)
+        VALUES (@sku, @nomeProduto, @qtd - @estoqueAtual);
+        
+        -- Atualiza o estoque para zero
+        UPDATE Estoque
+        SET quantidade = 0
+        WHERE sku = @sku;
+        
+        -- Calcula a entrega parcial (se houver algum estoque)
+        IF @estoqueAtual > 0
+        BEGIN
+            SET @totalEntrega = @estoqueAtual * @valor;
+            
+            PRINT('Entrega parcial: Pedido ' + CAST(@idPedido AS varchar) + ', Produto: ' + @nomeProduto + ', Quantidade entregue: ' + CAST(@estoqueAtual AS varchar));
+        END
+        
+        PRINT('Produto em falta: ' + @nomeProduto + ' será comprado. Quantidade necessária: ' + CAST(@qtd - @estoqueAtual AS varchar));
+    END
+
+    -- Buscar o próximo pedido
+    FETCH NEXT FROM pedidoCursor INTO @idPedido, @sku, @upc, @nomeProduto, @qtd, @valor, @frete, 
+                                    @email, @codigoComprador, @nomeComprador, @endereco, @cep, @uf, @pais;
+END
+
+-- Fechar e desalocar o cursor
+CLOSE pedidoCursor;
+DEALLOCATE pedidoCursor;
 
