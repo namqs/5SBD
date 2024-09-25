@@ -16,7 +16,7 @@ DECLARE @idPedido int,
         @estoqueAtual int,
         @totalEntrega decimal(9,2);
 
--- Cursor para selecionar os pedidos pendentes
+--inicio cursor
 DECLARE pedidoCursor CURSOR FOR 
     SELECT p.idPedido, pi.sku, pi.upc, pi.nomeProduto, pi.qtd, pi.valor, p.frete, p.email, p.codigoComprador, 
            p.nomeComprador, p.endereco, p.cep, p.uf, p.pais
