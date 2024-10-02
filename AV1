@@ -1,0 +1,187 @@
+-- Criar tabelas a partir de uma tabela temporaria de captação de dados e criar um cursor 
+
+-- 1° Parte: Criar TEMPDATA e fazer upload doos dados
+CREATE TABLE TEMPDATA (
+    codigoPedido VARCHAR(6),
+    dataPedido DATE,
+    SKU VARCHAR(15),
+    UPC VARCHAR(3),
+    nomeProduto VARCHAR(50),
+    qtd INT,
+    valor DECIMAL(10, 2),
+    frete DECIMAL(10, 2),
+    email VARCHAR(50),
+    codigoComprador VARCHAR(3),
+    nomeComprador VARCHAR(50),
+    endereco VARCHAR(100),
+    CEP VARCHAR(8),
+    UF VARCHAR(2),
+    pais VARCHAR(30)
+);
+
+LOAD DATA INFILE 'C:/Users/natal/Downloads/pedidos.txt'
+INTO TABLE TEMPDATA
+FIELDS TERMINATED BY ';' ENCLOSED BY '"' 
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(codigoPedido, dataPedido, SKU, UPC, nomeProduto, qtd, valor, frete, email, codigoComprador, nomeComprador, endereco, CEP, UF, pais);
+
+-- 2° Parte: Criar tabelas cliente, produtos, estoque, pedido, itempedido
+CREATE TABLE cliente (
+    idCliente INT AUTO_INCREMENT PRIMARY KEY,
+    codigoComprador VARCHAR(3) UNIQUE,
+    nomeComprador VARCHAR(50),
+    email VARCHAR(50),
+    endereco VARCHAR(100),
+    CEP VARCHAR(8),
+    UF VARCHAR(2),
+    pais VARCHAR(30)
+);
+
+CREATE TABLE produtos (
+    idProduto INT AUTO_INCREMENT PRIMARY KEY,
+    SKU VARCHAR(15) UNIQUE,
+    UPC VARCHAR(3),
+    nomeProduto VARCHAR(50),
+    valor DECIMAL(10, 2)
+);
+
+CREATE TABLE estoque (
+    idEstoque INT AUTO_INCREMENT PRIMARY KEY,
+    SKU VARCHAR(15) UNIQUE,
+    quantidade INT
+);
+
+CREATE TABLE pedido (
+    idPedido INT AUTO_INCREMENT PRIMARY KEY,
+    codigoPedido VARCHAR(6) UNIQUE,
+    dataPedido DATE,
+    idCliente INT,
+    frete DECIMAL(10, 2),
+    status VARCHAR(20) DEFAULT 'pendente',
+    FOREIGN KEY (idCliente) REFERENCES cliente(idCliente);
+);
+
+CREATE TABLE itempedido (
+    idItemPedido INT AUTO_INCREMENT PRIMARY KEY,
+    idPedido INT,
+    idProduto INT,
+    quantidade INT,
+    valor DECIMAL(10, 2),
+    FOREIGN KEY (idPedido) REFERENCES pedido(idPedido),
+    FOREIGN KEY (idProduto) REFERENCES produtos(idProduto)
+);
+
+CREATE TABLE entrega (
+    idEntrega INT AUTO_INCREMENT PRIMARY KEY,
+    idPedido INT, 
+    idProduto INT, 
+    quantidade INT,
+    valorTotal DECIMAL(10, 2),
+    dataEntrega DATE, 
+    statusEntrega VARCHAR(50),
+    FOREIGN KEY (idPedido) REFERENCES pedido(idPedido), 
+    FOREIGN KEY (idProduto) REFERENCES produtos(idProduto) 
+);
+
+CREATE TABLE compra (
+    idCompra INT AUTO_INCREMENT PRIMARY KEY,
+    idProduto INT, 
+    quantidade INT,
+    fornecedor VARCHAR(100),
+    FOREIGN KEY (idProduto) REFERENCES produtos(idProduto) 
+);
+
+-- 3° Parte: Inserir dados nas tabelas a partir da tabela temporária TEMPDATA
+
+INSERT INTO cliente (codigoComprador, nomeComprador, email, endereco, CEP, UF, pais)
+SELECT DISTINCT codigoComprador, nomeComprador, email, endereco, CEP, UF, pais
+FROM TEMPDATA;
+
+INSERT INTO produtos (SKU, UPC, nomeProduto, valor)
+SELECT SKU, UPC, nomeProduto, valor
+FROM TEMPDATA
+GROUP BY SKU;
+
+INSERT INTO estoque (SKU, quantidade)
+SELECT SKU, SUM(qtd) AS quantidade
+FROM TEMPDATA
+GROUP BY SKU;
+
+INSERT INTO pedido (codigoPedido, dataPedido, idCliente, frete)
+SELECT DISTINCT codigoPedido, dataPedido, c.idCliente, frete
+FROM TEMPDATA t --apelido tabela
+JOIN cliente c ON t.codigoComprador = c.codigoComprador; --o join é para relacionar o codigoComprador com o idCliente, porque cada codigo de comprador referencia um idcliente, basta criar a relação
+
+INSERT INTO itempedido (idPedido, idProduto, quantidade, valor)
+SELECT p.idPedido, pr.idProduto, t.qtd, t.valor
+FROM TEMPDATA t
+JOIN pedido p ON t.codigoPedido = p.codigoPedido
+JOIN produtos pr ON t.SKU = pr.SKU;
+
+DROP TABLE TEMPDATA;
+
+--CURSOR 
+
+--declara as variáveis que serão usadas no processamento
+DECLARE @idPedido int,
+        @idProduto int,
+        @qtd int, 
+        @valor decimal(9,2), 
+        @estoqueAtual int,
+        @totalPedido decimal(10,2),
+        @fornecedor VARCHAR(100) = 'Fornecedor Padrão';
+
+-- aqui o cursor em si é declarado
+DECLARE pedidoCursor CURSOR FOR 
+    SELECT p.idPedido, ip.idProduto, ip.quantidade, ip.valor
+    FROM pedido p
+    INNER JOIN itempedido ip ON ip.idPedido = p.idPedido
+    WHERE p.status = 'pendente'
+    ORDER BY ip.valor * ip.quantidade DESC; --ordena do maior valor para o menor
+
+OPEN pedidoCursor;
+
+--percorre o cursor
+FETCH NEXT FROM pedidoCursor INTO @idPedido, @idProduto, @qtd, @valor;
+
+--loop de processamento
+WHILE @@FETCH_STATUS = 0
+BEGIN
+
+    SET @totalPedido = @qtd * @valor;
+    
+    --verifica o estoque atual do produto
+    SELECT @estoqueAtual = quantidade FROM Estoque WHERE idProduto = @idProduto;
+    
+    --se tiver no estoque
+    IF @estoqueAtual >= @qtd
+    BEGIN
+        --debita o produto
+        UPDATE Estoque
+        SET quantidade = quantidade - @qtd
+        WHERE idProduto = @idProduto;
+        
+        --insere na entrega
+        INSERT INTO ENTREGA (idPedido, idProduto, quantidade, valorTotal, dataEntrega, statusEntrega)
+        VALUES (@idPedido, @idProduto, @qtd, @totalPedido, @dataEntrega, 'Em andamento');
+
+        --atualiza status do pedido
+        UPDATE pedido
+        SET status = 'Pedido Confirmado'
+        WHERE idPedido = @idPedido;
+
+    END
+    ELSE
+    BEGIN
+        --senão, insere em compra
+        INSERT INTO COMPRA (idProduto, quantidade, fornecedor)
+        VALUES (@idProduto, @qtd, @fornecedor);
+    END
+
+    --próxima linha até terminar
+    FETCH NEXT FROM pedidoCursor INTO @idPedido, @idProduto, @qtd, @valor;
+END
+
+CLOSE pedidoCursor;
+DEALLOCATE pedidoCursor;
