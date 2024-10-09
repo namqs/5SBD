@@ -122,66 +122,82 @@ JOIN produtos pr ON t.SKU = pr.SKU;
 DROP TABLE TEMPDATA;
 
 --CURSOR 
+DELIMITER //
 
---declara as variáveis que serão usadas no processamento
-DECLARE @idPedido int,
-        @idProduto int,
-        @qtd int, 
-        @valor decimal(9,2), 
-        @estoqueAtual int,
-        @totalPedido decimal(10,2),
-        @fornecedor VARCHAR(100) = 'Fornecedor Padrão';
-
--- aqui o cursor em si é declarado
-DECLARE pedidoCursor CURSOR FOR 
-    SELECT p.idPedido, ip.idProduto, ip.quantidade, ip.valor
-    FROM pedido p
-    INNER JOIN itempedido ip ON ip.idPedido = p.idPedido
-    WHERE p.status = 'pendente'
-    ORDER BY ip.valor * ip.quantidade DESC; --ordena do maior valor para o menor
-
-OPEN pedidoCursor;
-
---percorre o cursor
-FETCH NEXT FROM pedidoCursor INTO @idPedido, @idProduto, @qtd, @valor;
-
---loop de processamento
-WHILE @@FETCH_STATUS = 0
+CREATE PROCEDURE processa_pedidos()
 BEGIN
-
-    SET @totalPedido = @qtd * @valor;
+    -- Declaração de variáveis
+    DECLARE done INT DEFAULT 0;
+    DECLARE idPedido INT;
+    DECLARE idProduto INT;
+    DECLARE qtd INT;
+    DECLARE valor DECIMAL(9,2);
+    DECLARE estoqueAtual INT;
+    DECLARE totalPedido DECIMAL(10,2);
+    DECLARE fornecedor VARCHAR(100) DEFAULT 'Fornecedor Padrão';
     
-    --verifica o estoque atual do produto
-    SELECT @estoqueAtual = quantidade FROM Estoque WHERE idProduto = @idProduto;
-    
-    --se tiver no estoque
-    IF @estoqueAtual >= @qtd
-    BEGIN
-        --debita o produto
-        UPDATE Estoque
-        SET quantidade = quantidade - @qtd
-        WHERE idProduto = @idProduto;
-        
-        --insere na entrega
-        INSERT INTO ENTREGA (idPedido, idProduto, quantidade, valorTotal, dataEntrega, statusEntrega)
-        VALUES (@idPedido, @idProduto, @qtd, @totalPedido, @dataEntrega, 'Em andamento');
+    -- Declara o cursor
+    DECLARE pedidoCursor CURSOR FOR
+        SELECT p.idPedido, ip.idProduto, ip.quantidade, ip.valor
+        FROM pedido p
+        INNER JOIN itempedido ip ON ip.idPedido = p.idPedido
+        WHERE p.status = 'pendente'
+        ORDER BY ip.valor * ip.quantidade DESC;
 
-        --atualiza status do pedido
-        UPDATE pedido
-        SET status = 'Pedido Confirmado'
-        WHERE idPedido = @idPedido;
+    -- Declara o manipulador para quando o cursor não retornar mais dados
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
 
-    END
-    ELSE
-    BEGIN
-        --senão, insere em compra
-        INSERT INTO COMPRA (idProduto, quantidade, fornecedor)
-        VALUES (@idProduto, @qtd, @fornecedor);
-    END
+    -- Abre o cursor
+    OPEN pedidoCursor;
 
-    --próxima linha até terminar
-    FETCH NEXT FROM pedidoCursor INTO @idPedido, @idProduto, @qtd, @valor;
-END
+    -- Loop para percorrer os resultados do cursor
+    read_loop: LOOP
+        -- Busca a próxima linha
+        FETCH pedidoCursor INTO idPedido, idProduto, qtd, valor;
 
-CLOSE pedidoCursor;
-DEALLOCATE pedidoCursor;
+        -- Verifica se terminou de percorrer as linhas
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Calcula o valor total do pedido
+        SET totalPedido = qtd * valor;
+
+        -- Verifica o estoque atual do produto
+        SELECT quantidade INTO estoqueAtual 
+        FROM Estoque 
+        WHERE idProduto = idProduto 
+        LIMIT 1;
+
+        -- Se o estoque for suficiente
+        IF estoqueAtual >= qtd THEN
+            -- Atualiza o estoque
+            UPDATE Estoque
+            SET quantidade = quantidade - qtd
+            WHERE idProduto = idProduto;
+
+            -- Insere na tabela ENTREGA
+            INSERT INTO ENTREGA (idPedido, idProduto, quantidade, valorTotal, dataEntrega, statusEntrega)
+            VALUES (idPedido, idProduto, qtd, totalPedido, NOW(), 'Em andamento');
+
+            -- Atualiza o status do pedido
+            UPDATE pedido
+            SET status = 'Pedido Confirmado'
+            WHERE idPedido = idPedido;
+
+        ELSE
+            -- Insere na tabela COMPRA com quantidade padrão de 100 unidades
+            INSERT INTO COMPRA (idProduto, quantidade, fornecedor)
+            VALUES (idProduto, 100, fornecedor);
+        END IF;
+
+    END LOOP read_loop;
+
+    -- Fecha o cursor
+    CLOSE pedidoCursor;
+END //
+
+DELIMITER ;
+
+-- chama o cursor: 
+CALL processa_pedidos();
