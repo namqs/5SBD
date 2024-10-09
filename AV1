@@ -171,22 +171,18 @@ BEGIN
 
         -- Se o estoque for suficiente
         IF estoqueAtual >= qtd THEN
-            -- Atualiza o estoque
             UPDATE Estoque
             SET quantidade = quantidade - qtd
             WHERE idProduto = idProduto;
 
-            -- Insere na tabela ENTREGA
             INSERT INTO ENTREGA (idPedido, idProduto, quantidade, valorTotal, dataEntrega, statusEntrega)
             VALUES (idPedido, idProduto, qtd, totalPedido, NOW(), 'Em andamento');
 
-            -- Atualiza o status do pedido
             UPDATE pedido
-            SET status = 'Pedido Confirmado'
+            SET status = 'Pedido processado'
             WHERE idPedido = idPedido;
 
         ELSE
-            -- Insere na tabela COMPRA com quantidade padrão de 100 unidades
             INSERT INTO COMPRA (idProduto, quantidade, fornecedor)
             VALUES (idProduto, 100, fornecedor);
         END IF;
