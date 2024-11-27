@@ -8,3 +8,8 @@ Primeira atividade em sala: realizar o upload de dados a partir de um arquivo.
 <h3>Terceira atividade em casa:</h3> Realizar um CRUD utilizando ORM (Foi escolhido a biblioteca SQLalchemy, Python e MySQL)
 
 ![image](https://github.com/user-attachments/assets/344c4a6f-d1e7-42bc-a4f2-c8c0ef7afb10)
+
+<h3>AV2</h3>
+Realizar um CRUD utilizando endpoints e ORM. (Utilizei o Sequelize, do Node.js)
+
+![image](https://github.com/user-attachments/assets/5fc3c972-48d6-4da9-b2ab-a6bc03d4ebc2)
