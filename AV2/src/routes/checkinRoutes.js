@@ -1,45 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { Checkin } = require('../models/Checkin'); // Importe o modelo correspondente
+const checkinController = require('../controllers/checkinController');
 
 // Criar um novo check-in
-router.post('/', async (req, res) => {
-  try {
-    const checkin = await Checkin.create(req.body);
-    res.status(201).json(checkin);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao criar check-in.' });
-  }
-});
+router.post('/', checkinController.createCheckin);
 
 // Listar todos os check-ins
-router.get('/', async (req, res) => {
-  try {
-    const checkins = await Checkin.findAll();
-    res.json(checkins);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao listar check-ins.' });
-  }
-});
+router.get('/', checkinController.getAllCheckins);
 
 // Atualizar um check-in
-router.put('/:id', async (req, res) => {
-  try {
-    const checkin = await Checkin.update(req.body, { where: { id: req.params.id } });
-    res.json(checkin);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao atualizar check-in.' });
-  }
-});
+router.put('/:id', checkinController.updateCheckin);
 
 // Deletar um check-in
-router.delete('/:id', async (req, res) => {
-  try {
-    await Checkin.destroy({ where: { id: req.params.id } });
-    res.json({ message: 'Check-in deletado com sucesso.' });
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao deletar check-in.' });
-  }
-});
+router.delete('/:id', checkinController.deleteCheckin);
 
 module.exports = router;
+
