@@ -1,45 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const Passageiro = require('../models/Passageiro');
+const passageiroController = require('../controllers/passageiroController');
 
 // Criar um novo passageiro
-router.post('/', async (req, res) => {
-  try {
-    const passageiro = await Passageiro.create(req.body);
-    res.status(201).json(passageiro);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao criar passageiro.' });
-  }
-});
+router.post('/', passageiroController.createPassageiro);
 
 // Listar todos os passageiros
-router.get('/', async (req, res) => {
-  try {
-    const passageiros = await Passageiro.findAll();
-    res.json(passageiros);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao listar passageiros.' });
-  }
-});
+router.get('/', passageiroController.getAllPassageiros);
 
 // Atualizar um passageiro
-router.put('/:id', async (req, res) => {
-  try {
-    const passageiro = await Passageiro.update(req.body, { where: { id: req.params.id } });
-    res.json(passageiro);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao atualizar passageiro.' });
-  }
-});
+router.put('/:id', passageiroController.updatePassageiro);
 
 // Deletar um passageiro
-router.delete('/:id', async (req, res) => {
-  try {
-    await Passageiro.destroy({ where: { id: req.params.id } });
-    res.json({ message: 'Passageiro deletado com sucesso.' });
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao deletar passageiro.' });
-  }
-});
+router.delete('/:id', passageiroController.deletePassageiro);
 
 module.exports = router;
+
