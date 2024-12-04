@@ -1,6 +1,4 @@
-#AV2 API AEROPORTO
-
-# classe: Passagem 
+# AV2 API classe: Passagem 
 
 ## 🚀 Funcionalidades
 
